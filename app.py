@@ -1,3 +1,5 @@
+# app.py
+
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash, jsonify
 import os
 import logging
@@ -9,8 +11,9 @@ import io
 from langdetect import detect, DetectorFactory
 from datetime import datetime
 from dotenv import load_dotenv
+from celery_worker import process_pdf, celery  # Import the Celery task and Celery application
+from celery.result import AsyncResult
 from openai import OpenAI  # Import the OpenAI class
-from celery_worker import process_pdf  # Import the Celery task
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
@@ -41,7 +44,7 @@ logging.basicConfig(
 client = OpenAI()  # Initializes using the OPENAI_API_KEY from environment variables
 
 # Preset language options
-preset_languages = ['Classical Chinese', 'French', 'Latin', 'Old English', 'Other']
+preset_languages = ['Auto-Detect', 'Classical Chinese', 'French', 'Latin', 'Old English', 'Other']
 
 # Configure upload folder and allowed extensions
 UPLOAD_FOLDER = 'uploads'
@@ -77,30 +80,6 @@ def extract_text_with_ocr(file_path):
     except Exception as e:
         logging.error(f"OCR extraction error: {e}")
         return None
-
-def chunk_text(text, max_tokens=3000, model="gpt-4o-mini"):
-    import tiktoken
-    encoding = tiktoken.encoding_for_model(model)
-    sentences = sent_tokenize(text)
-    chunks = []
-    current_chunk = ""
-    current_tokens = 0
-
-    for sentence in sentences:
-        sentence_tokens = len(encoding.encode(sentence))
-        if current_tokens + sentence_tokens > max_tokens:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-            current_chunk = sentence
-            current_tokens = sentence_tokens
-        else:
-            current_chunk += " " + sentence
-            current_tokens += sentence_tokens
-
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-
-    return chunks
 
 def detect_language(text):
     try:
@@ -276,7 +255,6 @@ def translate_pdf():
     # Check if a task_id is provided to display results
     task_id = request.args.get('task_id')
     if task_id:
-        from celery.result import AsyncResult
         task = AsyncResult(task_id, app=celery)
         if task.state == 'SUCCESS':
             result = task.result
@@ -319,7 +297,6 @@ def download_file():
 
 @app.route('/task_status/<task_id>')
 def task_status(task_id):
-    from celery.result import AsyncResult
     task = AsyncResult(task_id, app=celery)
     if task.state == 'PENDING':
         response = {'state': task.state}
@@ -329,10 +306,10 @@ def task_status(task_id):
             'result': task.result
         }
     else:
-        # something went wrong in the background job
+        # Something went wrong in the background job
         response = {
             'state': task.state,
-            'result': str(task.info),  # this is the exception raised
+            'result': str(task.info),  # This is the exception raised
         }
     return jsonify(response)
 

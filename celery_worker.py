@@ -1,74 +1,141 @@
 import os
-import openai
-import logging
 from celery import Celery
+import logging
+from pdfminer.high_level import extract_text
+from nltk.tokenize import sent_tokenize
+from langdetect import detect, DetectorFactory
+from openai import OpenAI  # Import the OpenAI class
+import nltk
 
-# Get Redis URL from environment variable
-redis_url = os.getenv('REDIS_URL')
-
-# Initialize Celery with Redis as the broker
-celery = Celery('tasks', broker=redis_url)
-
-# Configure Celery task settings
-celery.conf.update(
-    result_backend=os.getenv('RESULT_BACKEND')  # Add result backend if required
-)
-
-# Configure OpenAI API key
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Ensure consistent results from langdetect
+DetectorFactory.seed = 0
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s:%(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
-@celery.task(bind=True)  # bind=True will give us access to self, which contains task context
+# Initialize OpenAI client
+client = OpenAI()  # Initializes using the OPENAI_API_KEY from environment variables
+
+# Initialize Celery application
+broker_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+celery = Celery('translatorai', broker=broker_url, backend=broker_url)
+
+# Configure Celery (optional)
+celery.conf.update(
+    broker_url=broker_url,
+    result_backend=broker_url,
+    task_serializer='json',
+    result_serializer='json',
+    accept_content=['json'],
+    timezone='UTC',
+    enable_utc=True,
+)
+
+# Download NLTK data locally and include in project
+nltk.data.path.append(os.path.join(os.path.dirname(__file__), 'nltk_data'))
+
+def chunk_text(text, max_tokens=3000, model="gpt-4o-mini"):
+    import tiktoken
+    encoding = tiktoken.encoding_for_model(model)
+    sentences = sent_tokenize(text)
+    chunks = []
+    current_chunk = ""
+    current_tokens = 0
+
+    for sentence in sentences:
+        sentence_tokens = len(encoding.encode(sentence))
+        if current_tokens + sentence_tokens > max_tokens:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence
+            current_tokens = sentence_tokens
+        else:
+            current_chunk += " " + sentence
+            current_tokens += sentence_tokens
+
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
+
+@celery.task(bind=True)
 def process_pdf(self, file_path, language):
+    logging.debug(f"Processing PDF at {file_path} with language {language}")
+    translation = ''
+    summary = ''
+
     try:
-        # Import functions for extracting and chunking text
-        from app import extract_text_from_pdf, chunk_text
-        
         # Extract text from PDF
-        text = extract_text_from_pdf(file_path)
+        text = extract_text(file_path)
         if not text:
-            return {"error": "Failed to extract text from PDF."}
+            # If extraction fails, attempt OCR
+            from pdf2image import convert_from_path
+            from PIL import Image
+            import pytesseract
 
-        # Chunk text into smaller pieces
+            pages = convert_from_path(file_path, dpi=300)
+            text = ""
+            for page in pages:
+                text += pytesseract.image_to_string(page)
+            text = text.strip()
+
+        if not text:
+            return {'error': 'Failed to extract text from the PDF.'}
+
+        logging.debug(f"Extracted text length: {len(text)} characters")
+
+        # Chunk the text
         chunks = chunk_text(text)
+        logging.debug(f"Total chunks created: {len(chunks)}")
 
-        translations = []
-        summaries = []
-
-        for chunk in chunks:
-            # Translation using OpenAI
-            translation_response = openai.ChatCompletion.create(
+        # Translate each chunk
+        translated_chunks = []
+        for i, chunk in enumerate(chunks):
+            logging.debug(f"Translating chunk {i+1}/{len(chunks)}")
+            translation_messages = [
+                {"role": "system", "content": "You are a helpful assistant that translates text."},
+                {
+                    "role": "user",
+                    "content": f"Translate the following text from {language} to English:\n\n{chunk}"
+                }
+            ]
+            completion = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that translates text."},
-                    {"role": "user", "content": f"Translate the following text from {language} to English:\n\n{chunk}"}
-                ]
+                messages=translation_messages
             )
-            translation = translation_response.choices[0].message['content'].strip()
-            translations.append(translation)
+            translated_chunk = completion.choices[0].message.content.strip()
+            translated_chunks.append(translated_chunk)
 
-            # Summarization using OpenAI
-            summary_response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that summarizes text."},
-                    {"role": "user", "content": f"Summarize the following English text in a few sentences:\n\n{translation}"}
-                ]
-            )
-            summary = summary_response.choices[0].message['content'].strip()
-            summaries.append(summary)
+        # Combine translated chunks
+        translation = "\n\n".join(translated_chunks)
+        logging.debug("Translation completed.")
 
-        # Combine translations and summaries
-        full_translation = "\n".join(translations)
-        full_summary = "\n".join(summaries)
+        # Summarize the translation
+        summary_messages = [
+            {"role": "system", "content": "You are a helpful assistant that summarizes text."},
+            {
+                "role": "user",
+                "content": f"Summarize the following English text in a few sentences:\n\n{translation}"
+            }
+        ]
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=summary_messages
+        )
+        summary = completion.choices[0].message.content.strip()
+        logging.debug("Summarization completed.")
 
-        return {"translation": full_translation, "summary": full_summary}
+        return {
+            'translation': translation,
+            'summary': summary
+        }
 
     except Exception as e:
-        # Capture and log any error that occurs during task execution
-        logging.error(f"Error processing PDF: {e}", exc_info=True)
-        self.retry(exc=e, countdown=60, max_retries=3)  # Retry mechanism in case of failure
-        return {"error": str(e)}
-
+        logging.error(f"Error in process_pdf task: {e}")
+        return {'error': str(e)}
