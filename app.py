@@ -13,7 +13,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from celery_worker import process_pdf, celery  # Import the Celery task and Celery application
 from celery.result import AsyncResult
-from openai import OpenAI  # Import the OpenAI class
+from openai import OpenAI  # Ensure correct import
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0

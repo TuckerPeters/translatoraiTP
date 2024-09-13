@@ -1,10 +1,12 @@
+# celery_worker.py
+
 import os
 from celery import Celery
 import logging
 from pdfminer.high_level import extract_text
 from nltk.tokenize import sent_tokenize
 from langdetect import detect, DetectorFactory
-from openai import OpenAI  # Import the OpenAI class
+from openai import OpenAI  # Ensure correct import
 import nltk
 
 # Ensure consistent results from langdetect
@@ -39,6 +41,7 @@ celery.conf.update(
 
 # Download NLTK data locally and include in project
 nltk.data.path.append(os.path.join(os.path.dirname(__file__), 'nltk_data'))
+
 
 def chunk_text(text, max_tokens=3000, model="gpt-4o-mini"):
     import tiktoken
