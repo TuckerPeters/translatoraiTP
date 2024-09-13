@@ -35,7 +35,7 @@ app.secret_key = os.getenv('SECRET_KEY', 'your_default_secret_key')
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.WARNING,  # Change from DEBUG to WARNING
     format='%(asctime)s %(levelname)s:%(message)s',
     handlers=[
         logging.StreamHandler()
