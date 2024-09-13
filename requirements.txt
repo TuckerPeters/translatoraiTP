@@ -7,7 +7,7 @@ pdfminer.six==20221105
 nltk==3.8.1
 langdetect==1.0.9
 openai==0.27.10
-tiktoken==0.4.0
+tiktoken==0.3.3
 pdf2image==1.16.3
 pytesseract==0.3.10
 Pillow==10.0.0
