@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Translate PDF{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Translate PDF</h1>
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="input_file" class="form-label">Upload PDF File:</label>
+            <input class="form-control" type="file" id="input_file" name="input_file" accept=".pdf" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="language" class="form-label">Select Language:</label>
+            <select class="form-select" id="language" name="language" required>
+                <option value="" disabled {% if not request.form.get('language') %}selected{% endif %}>Select a language</option>
+                <option value="Auto-Detect" {% if request.form.get('language') == 'Auto-Detect' %}selected{% endif %}>Auto-Detect</option>
+                {% for lang in preset_languages %}
+                    <option value="{{ lang }}" {% if request.form.get('language') == lang %}selected{% endif %}>{{ lang }}</option>
+                {% endfor %}
+                <option value="Other" {% if request.form.get('language') == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+
+        <div class="mb-3" id="custom_language_field" style="display: none;">
+            <label for="custom_language" class="form-label">Enter Custom Language:</label>
+            <input type="text" class="form-control" id="custom_language" name="custom_language" value="{{ request.form.custom_language or '' }}">
+        </div>
+
+        <button type="submit" class="btn btn-success">Translate PDF</button>
+    </form>
+
+    {% if translation %}
+        <hr class="my-5">
+        <h2>Translation:</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                {{ translation|safe }}
+            </div>
+        </div>
+        <a href="{{ url_for('download_file', content=translation, filename='translation.txt') }}" class="btn btn-outline-primary">Download Translation</a>
+    {% endif %}
+
+    {% if summary %}
+        <h2>Summary:</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                {{ summary|safe }}
+            </div>
+        </div>
+        <a href="{{ url_for('download_file', content=summary, filename='summary.txt') }}" class="btn btn-outline-secondary">Download Summary</a>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function showCustomLanguageField() {
+        var languageSelect = document.getElementById('language');
+        var customLanguageField = document.getElementById('custom_language_field');
+        if (languageSelect.value === 'Other') {
+            customLanguageField.style.display = 'block';
+        } else {
+            customLanguageField.style.display = 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        showCustomLanguageField();
+        document.getElementById('language').addEventListener('change', showCustomLanguageField);
+
+        // Show loading spinner on form submission
+        document.querySelector('form').addEventListener('submit', function() {
+            document.getElementById('loading-spinner').classList.remove('d-none');
+        });
+    });
+</script>
+{% endblock %}

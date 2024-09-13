@@ -1,0 +1,98 @@
+/* Custom Styles */
+
+/* Remove default margins and paddings */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+/* Homepage Background */
+.home-background {
+    background-image: url('../images/image.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 80vh; /* Ensure it covers the full viewport height */
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* Overlay to darken the background for better readability */
+.home-background::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(125, 121, 121, 0.5); /* Adjust opacity as needed */
+    z-index: 1;
+}
+
+/* Content Container */
+.home-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: #ffffff; /* White text for contrast */
+}
+
+/* Styled Buttons Container */
+.button-container {
+    background-color: rgba(255, 255, 255, 0.9); /* White with slight transparency */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+}
+
+/* Button Styles */
+.btn-custom {
+    width: 200px;
+    margin: 10px;
+    font-size: 1.2rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-custom:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 576px) {
+    .btn-custom {
+        width: 100%;
+    }
+
+    .button-container {
+        padding: 20px;
+    }
+}
+
+/* Ensure the loading spinner covers the entire viewport */
+#loading-spinner {
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Footer Adjustments */
+footer {
+    position: relative;
+}
+
+/* Additional Enhancements */
+.card {
+    border-radius: 10px;
+}
+
+textarea {
+    resize: none;
+}
+
+input[type="text"] {
+    border-radius: 5px;
+}

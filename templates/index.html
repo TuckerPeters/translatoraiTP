@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Home - TranslatorAI{% endblock %}
+
+{% block content %}
+    <div class="home-background position-relative">
+        <div class="home-content text-center">
+            <div class="button-container">
+                <h1 class="mb-4 text-primary">Welcome to TranslatorAI</h1>
+                <p class="mb-4 text-secondary">Effortlessly translate and summarize text and PDF documents.</p>
+                <div class="d-flex flex-column flex-md-row justify-content-center">
+                    <a href="{{ url_for('translate_text') }}" class="btn btn-lg btn-primary btn-custom">Translate Text</a>
+                    <a href="{{ url_for('translate_pdf') }}" class="btn btn-lg btn-outline-primary btn-custom">Translate PDF</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Any additional scripts specific to the homepage can go here
+</script>
+{% endblock %}
