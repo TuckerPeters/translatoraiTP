@@ -137,7 +137,7 @@ def translate_text():
         try:
             logging.debug("Sending translation request to OpenAI API.")
             completion = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=translation_messages
             )
             # Extract only the content
@@ -164,7 +164,7 @@ def translate_text():
             try:
                 logging.debug("Sending summarization request to OpenAI API.")
                 completion = client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-4o-mini",
                     messages=summary_messages
                 )
                 # Extract only the content
@@ -252,7 +252,7 @@ def translate_pdf():
         try:
             logging.debug("Sending translation request to OpenAI API.")
             completion = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=translation_messages
             )
             # Extract only the content
@@ -279,7 +279,7 @@ def translate_pdf():
             try:
                 logging.debug("Sending summarization request to OpenAI API.")
                 completion = client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-4o-mini",
                     messages=summary_messages
                 )
                 # Extract only the content
