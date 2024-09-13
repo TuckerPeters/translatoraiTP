@@ -100,7 +100,6 @@ dmypy.json
 .vscode/
 
 # Favicon and Images
-static/images/image.jpeg
 static/favicon.ico
 
 # Uploads
