@@ -1,3 +1,5 @@
+<!-- templates/translate_text.html -->
+
 {% extends "base.html" %}
 
 {% block title %}Translate Text{% endblock %}
@@ -14,7 +16,6 @@
             <label for="language" class="form-label">Select Language:</label>
             <select class="form-select" id="language" name="language" required>
                 <option value="" disabled {% if not request.form.get('language') %}selected{% endif %}>Select a language</option>
-                <option value="Auto-Detect" {% if request.form.get('language') == 'Auto-Detect' %}selected{% endif %}>Auto-Detect</option>
                 {% for lang in preset_languages %}
                     <option value="{{ lang }}" {% if request.form.get('language') == lang %}selected{% endif %}>{{ lang }}</option>
                 {% endfor %}

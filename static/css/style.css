@@ -1,3 +1,5 @@
+/* static/css/style.css */
+
 /* Custom Styles */
 
 /* Remove default margins and paddings */
@@ -77,6 +79,10 @@ body, html {
 /* Ensure the loading spinner covers the entire viewport */
 #loading-spinner {
     background-color: rgba(255, 255, 255, 0.8);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1050;
 }
 
 /* Footer Adjustments */

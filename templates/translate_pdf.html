@@ -1,20 +1,122 @@
-<!-- Add this script to handle AJAX polling -->
+<!-- templates/translate_pdf.html -->
+
+{% extends "base.html" %}
+
+{% block title %}Translate PDF{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Translate PDF</h1>
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="input_file" class="form-label">Upload PDF File:</label>
+            <input class="form-control" type="file" id="input_file" name="input_file" accept=".pdf" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="language" class="form-label">Select Language:</label>
+            <select class="form-select" id="language" name="language" required>
+                <option value="" disabled {% if not request.form.get('language') %}selected{% endif %}>Select a language</option>
+                {% for lang in preset_languages %}
+                    <option value="{{ lang }}" {% if request.form.get('language') == lang %}selected{% endif %}>{{ lang }}</option>
+                {% endfor %}
+                <option value="Other" {% if request.form.get('language') == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+
+        <div class="mb-3" id="custom_language_field" style="display: none;">
+            <label for="custom_language" class="form-label">Enter Custom Language:</label>
+            <input type="text" class="form-control" id="custom_language" name="custom_language" value="{{ request.form.custom_language or '' }}">
+        </div>
+
+        <button type="submit" class="btn btn-success">Translate</button>
+    </form>
+
+    <!-- Placeholder for Translation and Summary -->
+    <div id="translation-container" style="display: none;">
+        <hr class="my-5">
+        <h2>Translation:</h2>
+        <div class="card mb-4">
+            <div class="card-body" id="translation">
+                <!-- Translation will be inserted here -->
+            </div>
+        </div>
+        <a href="#" id="download-translation" class="btn btn-outline-primary">Download Translation</a>
+    </div>
+
+    <div id="summary-container" style="display: none;">
+        <h2>Summary:</h2>
+        <div class="card mb-4">
+            <div class="card-body" id="summary">
+                <!-- Summary will be inserted here -->
+            </div>
+        </div>
+        <a href="#" id="download-summary" class="btn btn-outline-secondary">Download Summary</a>
+    </div>
+{% endblock %}
+
+{% block scripts %}
 <script>
+    function showCustomLanguageField() {
+        var languageSelect = document.getElementById('language');
+        var customLanguageField = document.getElementById('custom_language_field');
+        if (languageSelect.value === 'Other') {
+            customLanguageField.style.display = 'block';
+        } else {
+            customLanguageField.style.display = 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        showCustomLanguageField();
+        document.getElementById('language').addEventListener('change', showCustomLanguageField);
+
+        // Show loading spinner on form submission
+        document.querySelector('form').addEventListener('submit', function() {
+            document.getElementById('loading-spinner').classList.remove('d-none');
+        });
+    });
+
     const urlParams = new URLSearchParams(window.location.search);
     const taskId = urlParams.get('task_id');
 
-    if(taskId) {
+    if (taskId) {
         function checkTaskStatus() {
             fetch(`/task_status/${taskId}`)
                 .then(response => response.json())
                 .then(data => {
-                    if(data.state === 'SUCCESS') {
-                        // Display the results
-                        document.querySelector('.flashes').innerHTML += `<li class="success">PDF processing completed successfully.</li>`;
-                        // Optionally, update the page with translation and summary
-                        location.reload();  // Reload to fetch results
-                    } else if(data.state === 'FAILURE') {
-                        document.querySelector('.flashes').innerHTML += `<li class="error">An error occurred during processing.</li>`;
+                    if (data.state === 'SUCCESS') {
+                        clearInterval(pollingInterval);
+                        document.getElementById('loading-spinner').classList.add('d-none');
+
+                        // Remove task_id from URL
+                        history.replaceState(null, '', window.location.pathname);
+
+                        // Update the page with translation and summary
+                        const { translation, summary } = data.result;
+                        document.getElementById('translation').innerText = translation;
+                        document.getElementById('summary').innerText = summary;
+
+                        // Show the translation and summary containers
+                        document.getElementById('translation-container').style.display = 'block';
+                        document.getElementById('summary-container').style.display = 'block';
+
+                        // Update download links
+                        document.getElementById('download-translation').href = `{{ url_for('download_file') }}?content=${encodeURIComponent(translation)}&filename=translation.txt`;
+                        document.getElementById('download-summary').href = `{{ url_for('download_file') }}?content=${encodeURIComponent(summary)}&filename=summary.txt`;
+
+                        // Display a success message
+                        const flashes = document.querySelector('.container.mt-4');
+                        if (flashes) {
+                            flashes.innerHTML += `<div class="alert alert-success alert-dismissible fade show" role="alert">PDF processing completed successfully.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
+                        }
+                    } else if (data.state === 'FAILURE') {
+                        clearInterval(pollingInterval);
+                        document.getElementById('loading-spinner').classList.add('d-none');
+
+                        const flashes = document.querySelector('.container.mt-4');
+                        if (flashes) {
+                            flashes.innerHTML += `<div class="alert alert-danger alert-dismissible fade show" role="alert">An error occurred during processing.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
+                        }
                     } else {
                         // Still processing
                         console.log(`Task status: ${data.state}`);
@@ -22,10 +124,18 @@
                 })
                 .catch(error => {
                     console.error('Error fetching task status:', error);
+                    clearInterval(pollingInterval);
+                    document.getElementById('loading-spinner').classList.add('d-none');
+
+                    const flashes = document.querySelector('.container.mt-4');
+                    if (flashes) {
+                        flashes.innerHTML += `<div class="alert alert-danger alert-dismissible fade show" role="alert">Error fetching task status.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
+                    }
                 });
         }
 
-        // Poll every 5 seconds
-        setInterval(checkTaskStatus, 5000);
+        // Start polling
+        const pollingInterval = setInterval(checkTaskStatus, 5000);
     }
 </script>
+{% endblock %}
