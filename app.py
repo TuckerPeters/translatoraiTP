@@ -9,6 +9,7 @@ import io
 from langdetect import detect, DetectorFactory
 from datetime import datetime
 from dotenv import load_dotenv
+from openai import OpenAI  # Import the OpenAI class
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
@@ -34,6 +35,9 @@ logging.basicConfig(
     ]
 )
 
+# Initialize OpenAI client
+client = OpenAI()  # Initialize the OpenAI client as per your specified format
+
 # Preset language options
 preset_languages = ['Classical Chinese', 'French', 'Latin', 'Old English', 'Other']
 
@@ -53,7 +57,7 @@ def split_text(text, max_length=3000):
     sentences = sent_tokenize(text)
     chunks = []
     current_chunk = ""
-    
+
     for sentence in sentences:
         if len(current_chunk) + len(sentence) + 1 <= max_length:
             current_chunk += " " + sentence
@@ -85,7 +89,7 @@ def index():
 def translate_text():
     translation = ''
     summary = ''
-    
+
     if request.method == 'POST':
         input_text = request.form.get('input_text', '').strip()
         selected_language = request.form.get('language', '').strip()
@@ -126,14 +130,15 @@ def translate_text():
         try:
             logging.debug("Sending translation request to OpenAI API.")
             translation_response = client.chat.completions.create(
-                model='gpt-4',  # Use 'gpt-4' or 'gpt-3.5-turbo'
+                model="gpt-4",  # Use 'gpt-4' or 'gpt-3.5-turbo'
                 messages=translation_messages
             )
-            # Access 'content' as an attribute
+            # Access 'content' from the response
             translation = translation_response.choices[0].message.content.strip()
             logging.debug(f"Translation received: {translation}")
             flash("Translation completed successfully.", "success")
         except Exception as e:
+            logging.error(f"Translation error: {e}")
             flash(f"An error occurred during translation: {e}", "error")
             return redirect(url_for('translate_text'))
 
@@ -152,14 +157,15 @@ def translate_text():
             try:
                 logging.debug("Sending summarization request to OpenAI API.")
                 summary_response = client.chat.completions.create(
-                    model='gpt-4',  # Use 'gpt-4' or 'gpt-3.5-turbo'
+                    model="gpt-4",  # Use 'gpt-4' or 'gpt-3.5-turbo'
                     messages=summary_messages
                 )
-                # Access 'content' as an attribute
+                # Access 'content' from the response
                 summary = summary_response.choices[0].message.content.strip()
                 logging.debug(f"Summary received: {summary}")
                 flash("Summary generated successfully.", "success")
             except Exception as e:
+                logging.error(f"Summarization error: {e}")
                 flash(f"An error occurred during summarization: {e}", "error")
                 return redirect(url_for('translate_text'))
 
@@ -174,38 +180,39 @@ def translate_text():
 def translate_pdf():
     translation = ''
     summary = ''
-    
+
     if request.method == 'POST':
         if 'input_file' not in request.files:
             flash("No file part in the request.", "error")
             return redirect(url_for('translate_pdf'))
-        
+
         file = request.files['input_file']
-        
+
         if file.filename == '':
             flash("No file selected for uploading.", "error")
             return redirect(url_for('translate_pdf'))
-        
+
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
             logging.debug(f"File saved to {file_path}")
-            
+
             try:
                 input_text = extract_text(file_path).strip()
                 logging.debug(f"Extracted text length: {len(input_text)} characters")
-                
+
                 if not input_text:
                     flash("The uploaded PDF is empty or couldn't extract any text.", "error")
                     return redirect(url_for('translate_pdf'))
             except Exception as e:
+                logging.error(f"PDF processing error: {e}")
                 flash(f"An error occurred while processing the PDF file: {e}", "error")
                 return redirect(url_for('translate_pdf'))
         else:
             flash("Allowed file types are PDF.", "error")
             return redirect(url_for('translate_pdf'))
-        
+
         # Determine the language
         selected_language = request.form.get('language', '').strip()
         custom_language = request.form.get('custom_language', '').strip()
@@ -238,14 +245,15 @@ def translate_pdf():
         try:
             logging.debug("Sending translation request to OpenAI API.")
             translation_response = client.chat.completions.create(
-                model='gpt-4',  # Use 'gpt-4' or 'gpt-3.5-turbo'
+                model="gpt-4",  # Use 'gpt-4' or 'gpt-3.5-turbo'
                 messages=translation_messages
             )
-            # Access 'content' as an attribute
+            # Access 'content' from the response
             translation = translation_response.choices[0].message.content.strip()
             logging.debug(f"Translation received: {translation}")
             flash("Translation completed successfully.", "success")
         except Exception as e:
+            logging.error(f"Translation error: {e}")
             flash(f"An error occurred during translation: {e}", "error")
             return redirect(url_for('translate_pdf'))
 
@@ -264,14 +272,15 @@ def translate_pdf():
             try:
                 logging.debug("Sending summarization request to OpenAI API.")
                 summary_response = client.chat.completions.create(
-                    model='gpt-4',  # Use 'gpt-4' or 'gpt-3.5-turbo'
+                    model="gpt-4",  # Use 'gpt-4' or 'gpt-3.5-turbo'
                     messages=summary_messages
                 )
-                # Access 'content' as an attribute
+                # Access 'content' from the response
                 summary = summary_response.choices[0].message.content.strip()
                 logging.debug(f"Summary received: {summary}")
                 flash("Summary generated successfully.", "success")
             except Exception as e:
+                logging.error(f"Summarization error: {e}")
                 flash(f"An error occurred during summarization: {e}", "error")
                 return redirect(url_for('translate_pdf'))
 
