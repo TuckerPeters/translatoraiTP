@@ -1,12 +1,10 @@
-# celery_worker.py
-
 import os
-from celery import Celery
 import logging
+from celery import Celery
 from pdfminer.high_level import extract_text
 from nltk.tokenize import sent_tokenize
 from langdetect import detect, DetectorFactory
-from openai import OpenAI  # Ensure correct import
+import openai  # Correct import
 import nltk
 
 # Ensure consistent results from langdetect
@@ -16,13 +14,11 @@ DetectorFactory.seed = 0
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s:%(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()]
 )
 
-# Initialize OpenAI client
-client = OpenAI()  # Initializes using the OPENAI_API_KEY from environment variables
+# Set up OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")  # Loads the OpenAI API key from environment variables
 
 # Initialize Celery application
 broker_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
@@ -108,7 +104,7 @@ def process_pdf(self, file_path, language):
                     "content": f"Translate the following text from {language} to English:\n\n{chunk}"
                 }
             ]
-            completion = client.chat.completions.create(
+            completion = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=translation_messages
             )
@@ -127,7 +123,7 @@ def process_pdf(self, file_path, language):
                 "content": f"Summarize the following English text in a few sentences:\n\n{translation}"
             }
         ]
-        completion = client.chat.completions.create(
+        completion = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=summary_messages
         )
